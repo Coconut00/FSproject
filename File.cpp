@@ -12,7 +12,6 @@ dirTable* currentDirTable;  //当前位置
 char path[200]; //保存当前绝对路径
 
 
-//初始化根目录
 void initRootDir()
 {
     //分配一个盘块空间给rootDirTable
@@ -21,36 +20,26 @@ void initRootDir()
         return;
     rootDirTable = (dirTable*)getBlockAddr(startBlock);
     rootDirTable->dirUnitAmount = 0;
-    //将自身作为父级目录
-    //addDirUnit(rootDirTable, "..", 0, startBlock);
 
     currentDirTable = rootDirTable;
-    //初始化初始绝对路径
     path[0]='/';
     path[1]='\0';
 }
 
-
-//获得绝对路径
 char* getPath()
 {
     return path;
 }
 
-
-//展示当前目录 ls
 void showDir()
 {
     int unitAmount = currentDirTable->dirUnitAmount;
     printf("total:%d\n", unitAmount);
     printf("name\ttype\tsize\tFCB\tdataStartBlock\n");
-    //遍历所有表项
     for(int i=0; i<unitAmount; i++)
     {
-        //获取目录项
         dirUnit unitTemp = currentDirTable->dirs[i];
         printf("%s\t%d\t", unitTemp.fileName, unitTemp.type);
-        //该表项是文件，继续输出大小和起始盘块号
         if(unitTemp.type == 1)
         {
             int FCBBlock = unitTemp.startBlock;
@@ -65,10 +54,8 @@ void showDir()
 }
 
 
-//切换目录 cd
 int changeDir(char dirName[])
 {
-    //目录项在目录位置
     int unitIndex = findUnitInTable(currentDirTable, dirName);
     //不存在
     if(unitIndex == -1)
@@ -81,7 +68,6 @@ int changeDir(char dirName[])
         printf("not a dir\n");
         return -1;
     }
-    //修改当前目录
     int dirBlock = currentDirTable->dirs[unitIndex].startBlock;
     currentDirTable = (dirTable*)getBlockAddr(dirBlock);
     //修改全局绝对路径
@@ -103,9 +89,6 @@ int changeDir(char dirName[])
     return 0;
 }
 
-
-
-//修改文件名或者目录名 mv
 int changeName(char oldName[], char newName[])
 {
     int unitIndex = findUnitInTable(currentDirTable, oldName);
@@ -118,17 +101,8 @@ int changeName(char oldName[], char newName[])
     return 0;
 }
 
-
-//******************创建和删除文件********************
-//创建文件 touch
 int creatFile(char fileName[], int fileSize)
 {
-    //检测文件名字长度
-    if(strlen(fileName) >= NUM)
-    {
-        printf("file name too long\n");
-        return -1;
-    }
     //获得FCB的空间
     int FCBBlock = getBlock(1);
     if(FCBBlock == -1)
@@ -147,8 +121,6 @@ int creatFile(char fileName[], int fileSize)
     return 0;
 }
 
-
-//创建目录 mkdir
 int creatDir(char dirName[])
 {
     if(strlen(dirName) >= NUM)
@@ -173,7 +145,6 @@ int creatDir(char dirName[])
 }
 
 
-//创建FCB
 int creatFCB(int fcbBlockNum, int fileBlockNum, int fileSize)
 {
     //找到fcb的存储位置
@@ -201,25 +172,20 @@ int creatFCB(int fcbBlockNum, int fileBlockNum, int fileSize)
 }
 
 
-//添加目录项
 int addDirUnit(dirTable* myDirTable, char fileName[], int type, int FCBBlockNum)
 {
-    //获得目录表
     int dirUnitAmount = myDirTable->dirUnitAmount;
-    //检测目录表示是否已满
     if(dirUnitAmount == DIRTABLE_MAX_SIZE)
     {
         printf("dirTables is full, try to delete some file\n");
         return -1;
     }
 
-    //是否存在同名文件
     if(findUnitInTable(myDirTable, fileName) != -1)
     {
         printf("file already exist\n");
            return -1;
     }
-    //构建新目录项
     dirUnit* newDirUnit = &myDirTable->dirs[dirUnitAmount];
     myDirTable->dirUnitAmount++;//当前目录表的目录项数量+1
     //设置新目录项内容
@@ -230,11 +196,8 @@ int addDirUnit(dirTable* myDirTable, char fileName[], int type, int FCBBlockNum)
     return 0;
 }
 
-
-//删除文件 rm
 int deleteFile(char fileName[])
 {
-    //忽略系统的自动创建的父目录
     if(strcmp(fileName, "..") == 0)
     {
         printf("can't delete ..\n");
@@ -255,26 +218,22 @@ int deleteFile(char fileName[])
         return -1;
     }
     int FCBBlock = myUnit.startBlock;
-    //释放内存
+
     releaseFile(FCBBlock);
-    //从目录表中剔除
     deleteDirUnit(currentDirTable, unitIndex);
     return 0;
 }
 
 
-//释放文件内存
+
 int releaseFile(int FCBBlock)
 {
     FCB* myFCB = (FCB*)getBlockAddr(FCBBlock);
-    myFCB->link--;  //链接数减一
-    //无链接，删除文件
+    myFCB->link--;  
     if(myFCB->link == 0)
     {
-        //释放文件的数据空间
         releaseBlock(myFCB->blockNum, myFCB->fileSize);
     }
-    //释放FCB的空间
     sem_close(myFCB->count_sem);
     sem_close(myFCB->write_sem);
     sem_unlink("count_sem");
@@ -283,11 +242,8 @@ int releaseFile(int FCBBlock)
     return 0;
 }
 
-
-//删除目录项
 int deleteDirUnit(dirTable* myDirTable, int unitIndex)
 {
-    //迁移覆盖
     int dirUnitAmount = myDirTable->dirUnitAmount;
     for(int i=unitIndex; i<dirUnitAmount-1; i++)
     {
@@ -297,17 +253,13 @@ int deleteDirUnit(dirTable* myDirTable, int unitIndex)
     return 0;
 }
 
-
-//删除目录 rmdir
 int deleteDir(char dirName[])
 {
-    //忽略系统的自动创建的父目录
     if(strcmp(dirName, "..") == 0)
     {
         printf("can't delete ..\n");
         return -1;
     }
-    //查找文件
     int unitIndex = findUnitInTable(currentDirTable, dirName);
     if(unitIndex == -1)
     {
@@ -315,43 +267,35 @@ int deleteDir(char dirName[])
         return -1;
     }
     dirUnit myUnit = currentDirTable->dirs[unitIndex];
-    //判断类型
-    if(myUnit.type == 0)//目录
+    if(myUnit.type == 0)
     {
         deleteFileInTable(currentDirTable, unitIndex);
     }else {
         printf("not a dir\n");
         return -1;
     }
-    //从目录表中剔除
     deleteDirUnit(currentDirTable, unitIndex);
     return 0;
 }
 
-
-//删除文件/目录项
 int deleteFileInTable(dirTable* myDirTable, int unitIndex)
 {
-   //查找文件
+   
     dirUnit myUnit = myDirTable->dirs[unitIndex];
-    //判断类型
-    if(myUnit.type == 0)//目录
+    if(myUnit.type == 0)
     {
-        //找到目录位置
         int FCBBlock = myUnit.startBlock;
         dirTable* table = (dirTable*)getBlockAddr(FCBBlock);
         //递归删除目录下的所有文件
         printf("cycle delete dir %s\n", myUnit.fileName);
         int unitCount = table->dirUnitAmount;
-        for(int i=1; i<unitCount; i++)//忽略“..”
+        for(int i=1; i<unitCount; i++)
         {
             printf("delete %s\n", table->dirs[i].fileName);
             deleteFileInTable(table, i);
         }
-        //释放目录表空间
         releaseBlock(FCBBlock, 1);
-    }else {//文件
-        //释放文件内存
+    }else {
         int FCBBlock = myUnit.startBlock;
         releaseFile(FCBBlock);
     }
@@ -359,8 +303,6 @@ int deleteFileInTable(dirTable* myDirTable, int unitIndex)
 }
 
 
-
-//**********************读写操作*******************
 FCB* my_open(char fileName[])
 {
     int unitIndex = findUnitInTable(currentDirTable, fileName);
@@ -376,7 +318,6 @@ FCB* my_open(char fileName[])
 }
 
 
-//读文件
 int my_read(char fileName[], int length)
 {
     int unitIndex = findUnitInTable(currentDirTable, fileName);
@@ -385,18 +326,17 @@ int my_read(char fileName[], int length)
         printf("file no found\n");
         return -1;
     }
-    //控制块
     int FCBBlock = currentDirTable->dirs[unitIndex].startBlock;
     FCB* myFCB = (FCB*)getBlockAddr(FCBBlock);
-    myFCB->readptr = 0; //文件指针重置
-    //读数据
+    myFCB->readptr = 0; 
     char* data = (char*)getBlockAddr(myFCB->blockNum);
     int val;
     myFCB->count_sem = sem_open("count_sem", 0);
-    /* 获取记录读者数量的锁 */
     if(sem_wait(myFCB->count_sem) == -1)
         perror("sem_wait error");
     sem_getvalue(myFCB->count_sem, &val);
+    /*这里加读写锁的意义在于考虑并发状态下的处理方法*/
+    /*但在运行时并没有设计并发读写的情况，因此仅作熟悉代码的编写*/
     /* 根据拥有锁的进程数量来判断是否是第一个读者 */
     /* 如果是第一个读者就负责锁上写者锁 */
     if(val == NUMREADER-1)
@@ -415,8 +355,6 @@ int my_read(char fileName[], int length)
     }
     if(myFCB->readptr == dataSize)//读到文件末尾用#表示
         printf("#");
-    /* 下面两行只是为了模拟编辑器的关闭之前的情况， */
-    /* 这样就能控制进程不会立即释放锁 */
     printf("\ninput a character to end up reading....\n");
     getchar();
     /* 如果是最后一个读者就负责释放读者锁 */
@@ -429,8 +367,6 @@ int my_read(char fileName[], int length)
     return 0;
 }
 
-
-//写文件，从末尾写入 write
 int my_write(char fileName[], char content[])
 {
     int unitIndex = findUnitInTable(currentDirTable, fileName);
@@ -439,7 +375,6 @@ int my_write(char fileName[], char content[])
         printf("file no found\n");
         return -1;
     }
-    //控制块
     int FCBBlock = currentDirTable->dirs[unitIndex].startBlock;
     FCB* myFCB = (FCB*)getBlockAddr(FCBBlock);
     /* myFCB->dataSize = 0; */
@@ -456,7 +391,6 @@ int my_write(char fileName[], char content[])
     {
         *(data+myFCB->dataSize) = content[i];
     }
-    /* 模拟编辑器,控制写者不立即退出 */
     printf("input a character to end up waiting....\n");
     getchar();
     /* 释放写者锁 */
@@ -466,15 +400,11 @@ int my_write(char fileName[], char content[])
     return 0;
 }
 
-
-
-//从目录中查找目录项目
 int findUnitInTable(dirTable* myDirTable, char unitName[])
 {
-    //获得目录表
     int dirUnitAmount = myDirTable->dirUnitAmount;
     int unitIndex = -1;
-    for(int i = 0; i < dirUnitAmount; i++)//查找目录项位置
+    for(int i = 0; i < dirUnitAmount; i++)
         if(strcmp(unitName, myDirTable->dirs[i].fileName) == 0)
             unitIndex = i;
     return unitIndex;
