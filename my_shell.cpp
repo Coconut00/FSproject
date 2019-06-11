@@ -12,14 +12,14 @@
 #include "File.h"
 #include "Disk.h"
 
-/* 获得当前目录名 */
+
 void GetDir()
 {
     char *path = getPath();
     printf("%s", path);
 }
 
-/* ctrl-C的信号处理程序 */
+
 static void sigHandler(int sig)
 {
     exitSystem();
@@ -42,10 +42,10 @@ int main()
     {
         GetDir();
         fflush(stdout);
-        //读取字符串
+        
         char buf[1024];
         int s = read(0, buf, 1024);
-        if(s > 0)//有读取到字符
+        if(s > 0)
         {
             int i = 0;
             for( i = 0; i < s; ++i)
@@ -63,7 +63,7 @@ int main()
                 }
                 else if(buf[i] == '\b' && i == 0)
                 {
-                //    printf("debug:%d\n",i);
+              
                     int j = 0;
                     for( j = 1; j < s; ++j)
                     {
@@ -83,12 +83,10 @@ int main()
         {
             continue;
         }
-        //将读取到的字符串分成多个字符串
         char* start = buf;
         int i =1;
         char* MyArgv[10] = {0};
         MyArgv[0] = start;
-        /* 跳过空格 */
         while(*start)
         {
             if(isspace(*start))
